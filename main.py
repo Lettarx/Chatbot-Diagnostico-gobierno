@@ -1,69 +1,66 @@
 import streamlit as st
-from langchain.chat_models import init_chat_model
+from langchain.chat_models import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, MessagesState, StateGraph
-from langchain_core.messages import HumanMessage
-
 from dotenv import load_dotenv
-import os
-from polpaico import Questions
-from preeguntas import preguntas
 
+# Cargar variables de entorno
+load_dotenv()
 
-env = load_dotenv(".env")
-#Titulo de la aplicación
-st.title("Diagnostico Nivel de Maduración GB")
+from preeguntas import preguntas  
+from prompts import prompt_preguntas
 
-#plantilla prompt
-prompt_questions_only = ChatPromptTemplate(Questions)
+# Configuración de la página
+st.set_page_config(page_title="Entrevista Pre Diagnóstico")
 
-#Ingresar Api desde .env
-openai_api_key = os.environ.get("OPENAI_API_KEY")
+# Inicializar estado de sesión
+if "indice_pregunta" not in st.session_state:
+    st.session_state.indice_pregunta = 0
+if "historial" not in st.session_state:
+    st.session_state.historial = []
+if "comenzado" not in st.session_state:
+    st.session_state.comenzado = True  # Lo activamos por defecto
 
-#Cargar modelo de chat
-model = init_chat_model("gpt-4o-mini", model_provider="openai")
+# Configurar el modelo
+model = ChatOpenAI(temperature=0)
+prompt_template = ChatPromptTemplate.from_template(prompt_preguntas)
 
-#define un nuevo graph
-workflow = StateGraph(state_schema=MessagesState)
+st.title("Entrevista de Diagnóstico en Gobierno de Datos")
 
-#Definir la función que llama al modelo
-def call_model(state: MessagesState):
-  prompt = prompt_questions_only.invoke(state)
-  response = model.invoke(state["messages"])
-  return {"messages": response}
+# Mostrar historial anterior usando st.chat_message
+for i, (pregunta, respuesta) in enumerate(st.session_state.historial):
+    with st.chat_message("assistant"):
+        st.markdown(f"**Pregunta {i+1}:** {pregunta}")
+    with st.chat_message("user"):
+        st.markdown(respuesta)
 
-#Definir el nodo en el graph
-workflow.add_edge(START, "model")
-workflow.add_node("model", call_model)
+# Flujo de la entrevista
+if st.session_state.indice_pregunta < len(preguntas):
+    pregunta_actual = preguntas[st.session_state.indice_pregunta]
 
-#Añadir a la memoria
-if "memory" not in st.session_state:
-    st.session_state.memory = MemorySaver()
-app = workflow.compile(checkpointer=st.session_state.memory)
+    # Mostrar pregunta en la interfaz tipo chat
+    with st.chat_message("assistant"):
+        st.markdown(f"{pregunta_actual}")
 
-#Maneja las sesiones
-config = {"configurable": {"thread_id": "abc123"}}
+    # Entrada del usuario
+    user_input = st.chat_input("💬 Tu respuesta:")
 
-#Fuuncion para autentificarse con openai
-def generate_response(input_text):
-    input_messages = [HumanMessage(input_text)]
-    response = app.invoke(
-        {"messages": input_messages},
-        config
-    )
-    st.info(response["messages"][-1].content)
+    if user_input:
+        # Guardar historial
+        st.session_state.historial.append((pregunta_actual, user_input))
 
-#Formulario del chatbot
-with st.form("my_form"):
-    #entrada   
-    text = st.text_area(
-        "Enter text:",
-        "What are the three key pieces of advice for learning how to code?",
-    )
-    #Cuando se envia se realiza la solicitud
-    submitted = st.form_submit_button("Submit")
-    if not openai_api_key.startswith("sk-"):
-        st.warning("Please enter your OpenAI API key!", icon="⚠")
-    if submitted and openai_api_key.startswith("sk-"):
-        generate_response(text)
+        # Generar respuesta del modelo
+        prompt = prompt_template.invoke({
+            "pregunta_actual": pregunta_actual,
+            "respuesta_usuario": user_input
+        })
+        respuesta_modelo = model.invoke(prompt)
+
+        # Mostrar respuesta del modelo
+        with st.chat_message("assistant"):
+            st.markdown(respuesta_modelo.content)
+
+        # Avanzar a la siguiente pregunta
+        st.session_state.indice_pregunta += 1
+        st.rerun()
+else:
+    st.success("✅ Entrevista completada. ¡Gracias!")
