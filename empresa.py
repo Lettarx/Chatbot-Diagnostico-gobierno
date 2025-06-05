@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
-from preeguntas import preguntas  
+from preeguntas_cortas import preguntas
 from prompts import prompt_preguntas, prompt_informe
 import json
 import os
