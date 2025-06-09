@@ -3,7 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from preeguntas_cortas import preguntas
-from prompts import prompt_preguntas, prompt_informe
+from prompts import prompt_preguntas, prompt_informe, prompt_preguntas_profundizar
 import json
 import os
 from datetime import datetime
@@ -64,10 +64,15 @@ def mostrar_vista_empresa():
         st.session_state.historial = []
     if "comenzado" not in st.session_state:
         st.session_state.comenzado = True  # Lo activamos por defecto
+    if "esperando_aprobacion" not in st.session_state:
+        st.session_state.esperando_aprobacion = False
+    if "pregunta_modelo" not in st.session_state:
+        st.session_state.pregunta_modelo = ""
+
 
     # Configurar el modelo
     model = ChatOpenAI(temperature=0)
-    prompt_template = ChatPromptTemplate.from_template(prompt_preguntas)
+    prompt_template = ChatPromptTemplate.from_template(prompt_preguntas_profundizar)
 
     st.title("Entrevista de Diagnóstico en Gobierno de Datos")
 
@@ -80,7 +85,11 @@ def mostrar_vista_empresa():
 
     # Flujo de la entrevista
     if st.session_state.indice_pregunta < len(preguntas):
-        pregunta_actual = preguntas[st.session_state.indice_pregunta]
+        if not st.session_state.esperando_aprobacion:
+
+            pregunta_actual = preguntas[st.session_state.indice_pregunta]
+        else:
+            pregunta_actual = st.session_state.pregunta_modelo
 
         # Mostrar pregunta en la interfaz tipo chat
         with st.chat_message("assistant"):
@@ -90,22 +99,28 @@ def mostrar_vista_empresa():
         user_input = st.chat_input("💬 Tu respuesta:")
 
         if user_input:
-            # Guardar historial
-            st.session_state.historial.append((pregunta_actual, user_input))
-
+            
             # Generar respuesta del modelo
             prompt = prompt_template.invoke({
                 "pregunta_actual": pregunta_actual,
-                "respuesta_usuario": user_input
+                "respuesta_usuario": user_input,
+                "historial": "\n".join([f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(st.session_state.historial[:-1])])
             })
             respuesta_modelo = model.invoke(prompt)
+
+            print("Respuesta del modelo:", respuesta_modelo.content)
+            st.session_state.pregunta_modelo =  respuesta_modelo.content
 
             # Mostrar respuesta del modelo
             with st.chat_message("assistant"):
                 st.markdown(respuesta_modelo.content)
 
             # Avanzar a la siguiente pregunta
-            st.session_state.indice_pregunta += 1
+            if "pasemos a la siguiente pregunta" in respuesta_modelo.content.lower():
+                st.session_state.indice_pregunta += 1
+                st.session_state.esperando_aprobacion = False
+            else: st.session_state.esperando_aprobacion = True
+            st.session_state.historial.append((pregunta_actual, user_input))
             st.rerun()
     else:
         st.success("✅ Entrevista completada. ¡Gracias!")
