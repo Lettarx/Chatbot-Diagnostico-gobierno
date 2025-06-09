@@ -1,3 +1,6 @@
+"""
+Preguntas cortas para la encuesta de gobernanza de datos.
+"""
 preguntas = [
 	"¿Qué infraestructura tecnológica utilizan para gestionar la gobernanza de datos?",
 	"¿Qué herramientas de BI/BA utilizan para la explotación, visualización, almacenamiento y procesamiento de datos?",

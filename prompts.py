@@ -1,4 +1,6 @@
-prompt_preguntas_profundizar = """
+"""Prompts para la entrevista de diagnóstico en Gobierno de Datos."""
+
+PROMPT_PREGUNTAS_PROFUNDIZAR = """
 Eres un entrevistador experto en Gobierno de Datos.
 
 Tu tarea es realizar una entrevista preguntando sobre: "{pregunta_actual}".
@@ -15,7 +17,7 @@ Historial reciente:
 
 Última respuesta del usuario: "{respuesta_usuario}"
 """
-prompt_preguntas = """
+PROMPT_PREGUNTAS = """
 Eres un experto entrevistador en Gobierno de Datos. Tu objetivo es simple:
 
 1. Hacer la siguiente pregunta: "{pregunta_actual}"
@@ -27,7 +29,7 @@ Mantén el formato de preguntas establecido.
 
 Última respuesta del usuario: "{respuesta_usuario}"
 """
-prompt_informe = """
+PROMPT_INFORME = """
 Has realizado una entrevista de diagnóstico en Gobierno de Datos con una empresa.
 A continuación te proporciono las preguntas y respuestas dadas:
 
