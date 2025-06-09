@@ -1,18 +1,25 @@
+"""
+Interfaz y logica para la entrevista de diagnóstico en Gobierno de Datos.
+"""
+import os
+from datetime import datetime
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
+from pymongo import MongoClient, errors as pymongo_errors
 from preeguntas_cortas import preguntas
-from prompts import prompt_preguntas, prompt_informe, prompt_preguntas_profundizar
-import json
-import os
-from datetime import datetime
-from pymongo import MongoClient
-
+from prompts import prompt_informe, prompt_preguntas_profundizar
 
 load_dotenv()
 
 def guardar_resultado(empresa, respuestas, informe):
+    """
+    Guarda el resultado de la entrevista en MongoDB.
+    :param empresa: Nombre de la empresa
+    :param respuestas: Lista de tuplas con preguntas y respuestas
+    :param informe: Informe generado por el modelo
+    :return: True si se guardó correctamente, False en caso contrario"""
     try:
         id_documento = guardar_resultado_mongo(
             empresa=empresa,
@@ -22,23 +29,24 @@ def guardar_resultado(empresa, respuestas, informe):
         st.success(f"✅ Archivo guardado exitosamente en: {id_documento}")
         return True
 
-    except Exception as e:
+    except pymongo_errors.PyMongoError as e:
         st.error(f"❌ Error al guardar el archivo: {str(e)}")
         return False
-    
-
 
 def guardar_resultado_mongo(empresa, respuestas, informe):
-    # Puedes pasar el URI como variable de entorno para no dejarlo hardcodeado
+    """
+    Guarda el resultado de la entrevista en MongoDB.
+    :param empresa: Nombre de la empresa
+    :param respuestas: Lista de tuplas con preguntas y respuestas
+    :param informe: Informe generado por el modelo
+    :return: ID del documento insertado en MongoDB"""
     mongo_uri = os.getenv("MONGO_URI")
     if not mongo_uri:
-        raise Exception("No hay MONGO_URI configurado")
+        raise ValueError("No hay MONGO_URI configurado")
 
     client = MongoClient(mongo_uri)
     db = client["diagnosticos"]   # Nombre de la base de datos
     coleccion = db["resultados"]  # Nombre de la colección
-    
-
     data = {
         "empresa": empresa,
         "fecha": datetime.now().isoformat(),
@@ -49,12 +57,13 @@ def guardar_resultado_mongo(empresa, respuestas, informe):
     resultado = coleccion.insert_one(data)
     return resultado.inserted_id  # ID del documento insertado
 
-
 def mostrar_vista_empresa():
+    """
+    Muestra interfaz de la entrevista para la empresa.
+    """
     if not st.session_state.logged_in or st.session_state.user_type != "empresa":
         st.error("Acceso no autorizado")
         return
-    
     load_dotenv()
 
     # Inicializar estado de sesión
@@ -99,12 +108,12 @@ def mostrar_vista_empresa():
         user_input = st.chat_input("💬 Tu respuesta:")
 
         if user_input:
-            
             # Generar respuesta del modelo
             prompt = prompt_template.invoke({
                 "pregunta_actual": pregunta_actual,
                 "respuesta_usuario": user_input,
-                "historial": "\n".join([f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(st.session_state.historial[:-1])])
+                "historial": "\n".join([f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(
+                    st.session_state.historial[:-1])])
             })
             respuesta_modelo = model.invoke(prompt)
 
@@ -132,7 +141,8 @@ def mostrar_vista_empresa():
             prompt_template_informe = ChatPromptTemplate.from_template(prompt_informe)
 
             resumen_respuestas = "\n".join(
-                [f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(st.session_state.historial)]
+                [f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(
+                    st.session_state.historial)]
             )
 
             prompt_informe_llm = prompt_template_informe.invoke({
@@ -143,7 +153,7 @@ def mostrar_vista_empresa():
 
             # Guardar los datos
             if guardar_resultado(
-                empresa=st.session_state.get("empresa_nombre", "empresa_default"),  
+                empresa=st.session_state.get("empresa_nombre", "empresa_default"),
                 respuestas=st.session_state.historial,
                 informe=informe
             ):
