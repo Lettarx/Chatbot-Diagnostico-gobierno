@@ -1,3 +1,7 @@
+"""
+Lista preguntas para la entrevista de diagnóstico en Gobierno de Datos.
+"""
+
 preguntas = [
 	"¿Qué infraestructura tecnológica utilizan para gestionar la gobernanza de datos?",
 	"¿Qué herramientas de BI/BA utilizan para la explotación, visualización, almacenamiento y procesamiento de datos?",

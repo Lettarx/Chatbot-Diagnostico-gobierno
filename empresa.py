@@ -9,7 +9,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 from pymongo import MongoClient, errors as pymongo_errors
 from preeguntas_cortas import preguntas
-from prompts import prompt_informe, prompt_preguntas_profundizar
+from prompts import PROMPT_INFORME, PROMPT_PREGUNTAS_PROFUNDIZAR
 
 load_dotenv()
 
@@ -81,7 +81,7 @@ def mostrar_vista_empresa():
 
     # Configurar el modelo
     model = ChatOpenAI(temperature=0)
-    prompt_template = ChatPromptTemplate.from_template(prompt_preguntas_profundizar)
+    prompt_template = ChatPromptTemplate.from_template(PROMPT_PREGUNTAS_PROFUNDIZAR)
 
     st.title("Entrevista de Diagnóstico en Gobierno de Datos")
 
@@ -138,7 +138,7 @@ def mostrar_vista_empresa():
         if "informe_generado" not in st.session_state:
 
             model = ChatOpenAI(temperature=0)
-            prompt_template_informe = ChatPromptTemplate.from_template(prompt_informe)
+            prompt_template_informe = ChatPromptTemplate.from_template(PROMPT_INFORME)
 
             resumen_respuestas = "\n".join(
                 [f"{i+1}. {q}\nRespuesta: {r}" for i, (q, r) in enumerate(
